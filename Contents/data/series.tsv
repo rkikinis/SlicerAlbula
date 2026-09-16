@@ -1,0 +1,13 @@
+# The public test corpus for SlicerAlbula, one series per line.
+#
+# case_id  collection (IDC's collection_id, exactly as its index names it)  modality  instances  purpose  series_instance_uid
+#
+# Every UID here is a TCIA SeriesInstanceUID and is public: it is the same identifier the
+# NCI Imaging Data Commons indexes the series under. Nothing derived on this machine appears
+# here -- locally generated objects carry 2.25.* UIDs, which mean nothing to anyone else.
+C3N-01524	cptac_ccrcc	CT	709	the surface-extraction case: 12,121,372 triangles at ts:total defaults	1.3.6.1.4.1.14519.5.2.1.2932.1975.255072988367557196694880426160
+CRLM-CT-1058	colorectal_liver_metastases	CT	43	a small abdominal CT, for a fast round trip	1.3.6.1.4.1.14519.5.2.1.9203.8273.113655809007607955375871244834
+HCC_044	hcc_tace_seg	CT	87	liver, contrast phases	1.3.6.1.4.1.14519.5.2.1.1706.8374.612466481997885413322030303061
+ReMIND-035	remind	MR	176	brain MR, for FastSurfer	1.3.6.1.4.1.14519.5.2.1.36950563037518233413691614022412383812
+ReMIND-035	remind	SEG	1	someone else's SEG, to read against a writer that is not ours	1.3.6.1.4.1.14519.5.2.1.47063891140486623440152894691576878490
+ReMIND-035	remind	SEG	1	the second published segmentation on the same study	1.3.6.1.4.1.14519.5.2.1.211042100735491137893434081365735935948

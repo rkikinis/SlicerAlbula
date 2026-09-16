@@ -1,0 +1,3 @@
+[submodule "Contents/src/live"]
+	path = Contents/src/live
+	url = https://github.com/pieper/live.git
