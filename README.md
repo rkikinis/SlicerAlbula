@@ -5,6 +5,12 @@
 > ## This software is not intended for clinical use.
 > ## Slicer is NOT an FDA approved medical device.
 
+<p align="center">
+  <a href="Contents/docs/images/albula-whole-body-ct.png"><img src="Contents/docs/images/albula-whole-body-ct.png" width="49%" alt="SlicerAlbula: 111 structures from TotalSegmentator on a whole-body CT, with the structure tree and three slice views"></a>
+  <a href="Contents/docs/images/albula-brain-mr.png"><img src="Contents/docs/images/albula-brain-mr.png" width="49%" alt="SlicerAlbula: 95 brain structures from FastSurfer on a T1 MR, the left hemisphere's cortex opened in the tree"></a>
+</p>
+<p align="center"><sub>Left: TotalSegmentator on a whole-body CT (CPTAC case C3N-01524, from the Imaging Data Commons), 111 structures with the lung and liver vessels. Right: FastSurfer on a T1 MR (OpenNeuro ds000113), 95 structures. Both through haversack; the trees are the Segmentations module.</sub></p>
+
 ## What this is
 
 SlicerAlbula is my sandbox. I want to experiment on how to improve the user experience. I am
