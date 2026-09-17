@@ -119,11 +119,12 @@ MSG
 fi
 
 echo "=== 2. Signing with $SIGN_ID"
-# SIGN A COPY OUTSIDE iCLOUD. This workspace lives on the Desktop, which iCloud syncs, and the File
-# Provider tags every file (com.apple.fileprovider.fpfs#P, com.apple.provenance, com.apple.macl)
-# faster than xattr can clear them -- codesign then refuses the bundle: "resource fork, Finder
+# SIGN A COPY IN /tmp. When this workspace lived on the Desktop (until 2026-09-16), iCloud's File
+# Provider tagged every file (com.apple.fileprovider.fpfs#P, com.apple.provenance, com.apple.macl)
+# faster than xattr could clear them -- codesign then refused the bundle: "resource fork, Finder
 # information, or similar detritus not allowed". The first signed build failed exactly there.
-# /tmp is not synced. ditto copies the bundle faithfully; xattr on the copy actually sticks.
+# The workspace is out of iCloud's reach now; the copy is kept because it costs nothing and
+# a clone on someone else's synced Desktop would hit the same wall.
 STAGE="$(mktemp -d /tmp/albula-sign.XXXXXX)"
 ditto "$APP" "$STAGE/SlicerAlbula.app"
 APP="$STAGE/SlicerAlbula.app"
