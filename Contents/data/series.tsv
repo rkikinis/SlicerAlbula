@@ -11,3 +11,10 @@ HCC_044	hcc_tace_seg	CT	87	liver, contrast phases	1.3.6.1.4.1.14519.5.2.1.1706.8
 ReMIND-035	remind	MR	176	brain MR, for FastSurfer	1.3.6.1.4.1.14519.5.2.1.36950563037518233413691614022412383812
 ReMIND-035	remind	SEG	1	someone else's SEG, to read against a writer that is not ours	1.3.6.1.4.1.14519.5.2.1.47063891140486623440152894691576878490
 ReMIND-035	remind	SEG	1	the second published segmentation on the same study	1.3.6.1.4.1.14519.5.2.1.211042100735491137893434081365735935948
+# Real clinical series with COMPRESSED pixel data, for the codecs (Contents/data/codecs/): IDC holds
+# them as received. Found 2026-09-19 by sampling every collection; most of IDC is uncompressed.
+MIDRC-RICORD-1A-419639-001085	midrc_ricord_1a	CT	66	JPEG lossless (1.2.840.10008.1.2.4.70), 16-bit CT, 12 MB	1.2.826.0.1.3680043.10.474.419639.420711809677491060385394909186
+NLST-213959	nlst	CT	147	JPEG extended 12-bit LOSSY (1.2.840.10008.1.2.4.51), a real lossy CT in the largest collection, 11 MB	1.3.6.1.4.1.14519.5.2.1.7009.9004.300915470453119236782416009817
+TCGA-D1-A16D	tcga_ucec	CT	71	JPEG lossless (1.2.840.10008.1.2.4.70), 12-bit coronal CT, 14 MB	1.3.6.1.4.1.14519.5.2.1.3344.4020.323066988763361413347580380177
+MIDRC-RICORD-1C-419639-001422	midrc_ricord_1c	DX	1	JPEG lossless (1.2.840.10008.1.2.4.70), 2021x2021 14-bit chest radiograph, 4 MB	1.2.826.0.1.3680043.10.474.419639.535312470322945310166421495945
+DBT-P00136	breast_cancer_screening_dbt	MG	1	JPEG 2000 lossless (1.2.840.10008.1.2.4.90), 2457x1996 10-bit mammogram, 2 MB	1.2.826.0.1.3680043.8.498.66785618348005305674256553902909034786

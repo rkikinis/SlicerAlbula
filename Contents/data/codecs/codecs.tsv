@@ -1,0 +1,34 @@
+# Compressed-pixel-data samples, one line per file: the minimum needed to build and test a decoder
+# for every transfer syntax SlicerAlbula should read. Small, public, MIT-licensed files from the
+# pydicom project (pinned: pydicom v3.0.1 and pydicom-data abc42b90). Where a lossless file has an
+# UNCOMPRESSED SIBLING, that sibling is the pixel-exact truth a decoder test compares against.
+#
+# transfer_syntax	name	file	source	what	truth_file (uncompressed, same pixels; "-" = none)
+1.2.840.10008.1.2.4.50	JPEG baseline 8-bit	SC_rgb_jpeg_dcmtk.dcm	pydicom	100x100 RGB (YBR_FULL), 1 frame	SC_rgb.dcm
+1.2.840.10008.1.2.4.50	JPEG baseline 8-bit	examples_ybr_color.dcm	pydicom	US 240x320 YBR_FULL_422, 30 frames	-
+1.2.840.10008.1.2.4.51	JPEG extended 12-bit	JPEG-lossy.dcm	pydicom	NM 1024x256 12-bit, 1 frame	-
+1.2.840.10008.1.2.4.70	JPEG lossless SV1	JPEG-LL.dcm	pydicom	NM 1024x256 16-bit, 1 frame	-
+1.2.840.10008.1.2.4.70	JPEG lossless SV1	JPGLosslessP14SV1_1s_1f_8b.dcm	pydicom-data	US 768x1024 8-bit, 1 frame	-
+1.2.840.10008.1.2.4.70	JPEG lossless SV1	bad_sequence.dcm	pydicom-data	CT 512x512 12-bit, 1 frame (a trailing bad sequence: the parser must cope)	-
+1.2.840.10008.1.2.4.80	JPEG-LS lossless	emri_small_jpeg_ls_lossless.dcm	pydicom-data	MR 64x64 12-bit, 10 frames	emri_small.dcm
+1.2.840.10008.1.2.4.80	JPEG-LS lossless	JLSL_16_15_1_1F.dcm	pydicom-data	16-bit signed, 1 frame	-
+1.2.840.10008.1.2.4.80	JPEG-LS lossless	JLSL_RGB_ILV0.dcm	pydicom-data	256x256 RGB, interleave 0	-
+1.2.840.10008.1.2.4.81	JPEG-LS near-lossless	JPEGLSNearLossless_16.dcm	pydicom	50x10 16-bit	-
+1.2.840.10008.1.2.4.81	JPEG-LS near-lossless	JLSN_RGB_ILV0.dcm	pydicom-data	256x256 RGB	-
+1.2.840.10008.1.2.4.90	JPEG 2000 lossless	693_J2KR.dcm	pydicom-data	CT 512x512, 1 frame; its header says BitsStored 16 while the truth file says 14 -- the codestream's own precision decides (a known trap)	693_UNCR.dcm
+1.2.840.10008.1.2.4.90	JPEG 2000 lossless	MR2_J2KR.dcm	pydicom-data	MR 1024x1024 12-bit	MR2_UNCR.dcm
+1.2.840.10008.1.2.4.90	JPEG 2000 lossless	RG3_J2KR.dcm	pydicom-data	CR 1760x1760 10-bit MONOCHROME1	RG3_UNCR.dcm
+1.2.840.10008.1.2.4.90	JPEG 2000 lossless	US1_J2KR.dcm	pydicom-data	US 480x640 YBR_RCT color	US1_UNCR.dcm
+1.2.840.10008.1.2.4.90	JPEG 2000 lossless	emri_small_jpeg_2k_lossless.dcm	pydicom-data	MR 64x64 12-bit, 10 frames	emri_small.dcm
+1.2.840.10008.1.2.4.90	JPEG 2000 lossless	J2K_pixelrep_mismatch.dcm	pydicom	CT 512x512 13-bit; the codestream says signed, the header says unsigned (a known trap)	-
+1.2.840.10008.1.2.4.91	JPEG 2000 lossy	693_J2KI.dcm	pydicom-data	CT 512x512 14-bit	-
+1.2.840.10008.1.2.4.91	JPEG 2000 lossy	MR2_J2KI.dcm	pydicom-data	MR 1024x1024 12-bit	-
+1.2.840.10008.1.2.4.91	JPEG 2000 lossy	US1_J2KI.dcm	pydicom-data	US 480x640 YBR_ICT color	-
+1.2.840.10008.1.2.4.91	JPEG 2000 lossy	JPEG2000.dcm	pydicom	NM 1024x256 16-bit	-
+1.2.840.10008.1.2.4.201	HTJ2K lossless	HTJ2KLossless_08_RGB.dcm	pydicom-data	480x640 RGB 8-bit	US1_UNCR.dcm
+1.2.840.10008.1.2.4.203	HTJ2K lossy	HTJ2K_08_RGB.dcm	pydicom-data	480x640 RGB 8-bit	-
+1.2.840.10008.1.2.5	RLE lossless	MR_small_RLE.dcm	pydicom	MR 64x64 16-bit	MR_small.dcm
+1.2.840.10008.1.2.5	RLE lossless	emri_small_RLE.dcm	pydicom-data	MR 64x64 12-bit, 10 frames	emri_small.dcm
+1.2.840.10008.1.2.5	RLE lossless	SC_rgb_rle_16bit.dcm	pydicom	100x100 RGB 16-bit	SC_rgb_16bit.dcm
+1.2.840.10008.1.2.5	RLE lossless	rtdose_rle.dcm	pydicom	RTDOSE 10x10 32-bit, 15 frames	rtdose.dcm
+1.2.840.10008.1.2.5	RLE lossless	OBXXXX1A_rle.dcm	pydicom-data	US 600x800 8-bit palette color	OBXXXX1A.dcm

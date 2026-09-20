@@ -14,6 +14,31 @@ if [ ! -x "$DENO" ]; then
 fi
 
 cd "$SRC" || exit 1
+
+# THE TESTS RUN FIRST. Ron, 2026-09-17: "please add tests when you are compiling." 131 test
+# files, about 45 s; a failure stops the build here with the failing tests named, so a broken
+# bundle is never what the app serves. --no-check is the known state of this tree (type-checking
+# fails on hundreds of Uint8Array<ArrayBufferLike> errors and runs nothing); "ALL PASS" in the
+# records has always meant this run. Skip with:  ALBULA_SKIP_TESTS=1 "<this script>"
+# when iterating on one thing with the tests known green -- and say so in the record.
+if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
+  echo "Tests first (deno test -A --no-check --unstable-ffi in $SRC)…"
+  T0=$(date +%s)
+  TEST_OUT="$(mktemp -t albula-tests)"
+  if "$DENO" test -A --no-check --unstable-ffi > "$TEST_OUT" 2>&1; then
+    echo "      tests: $(sed 's/\x1b\[[0-9;]*m//g' "$TEST_OUT" | grep -aE '^ok \| [0-9]+ passed' | tail -1 | sed 's/^ok | //')  ($(( $(date +%s) - T0 )) s)"
+  else
+    echo
+    echo "TESTS FAILED — nothing was built. The failures:"
+    sed 's/\x1b\[[0-9;]*m//g' "$TEST_OUT" | grep -aE "\.\.\. FAILED|^FAILED \|" | head -30
+    echo "  full output: $TEST_OUT"
+    exit 1
+  fi
+  rm -f "$TEST_OUT"
+else
+  echo "      tests: SKIPPED (ALBULA_SKIP_TESTS=1)"
+fi
+
 # THE BUILD STAMP, compiled into EVERY bundle so each one can say which build it IS.
 # The app serves files from disk, so a window can sit for hours on JS that predates the last
 # rebuild, with nothing on screen to say so -- which sent two rounds of debugging after a bug that
@@ -36,10 +61,21 @@ if command -v git >/dev/null 2>&1 && git -C "$SRC" rev-parse --git-dir >/dev/nul
   BUILD_ID="$BUILD_ID $BUILD_SHA"
 fi
 
-echo "Bundling render/demos/slicer-app.ts -> $GALLERY/webgpu/slicer-app.js  (build $BUILD_ID)"
+# THE MESH CODE FINGERPRINT: a hash of the source files that turn a stored surfaces object into
+# the meshes the renderer draws (the DICOM surface reader, the decimator and its worker, the
+# cache format, the vendored simplifier). Every mesh cache in the database records the fingerprint
+# that made it (logic/mesh-cache.ts, MESH_CODE) and the server refuses one made by other code --
+# so a fix to any of these files remakes every cache on its next load, and no one has to
+# remember to bump a version. It is NOT the build stamp on purpose: that changes on every rebuild
+# and would throw away 300 MB caches for a change to a menu.
+MESH_CODE="$(cat "$SRC/logic/readers/dicom-surface.ts" "$SRC/logic/decimate.ts" "$SRC/algorithms/decimate-worker.ts" \
+  "$SRC/logic/mesh-cache.ts" "$SRC/render/vendor/meshoptimizer/meshopt_simplifier.module.js" | shasum -a 256 | cut -c1-12)"
+
+echo "Bundling render/demos/slicer-app.ts -> $GALLERY/webgpu/slicer-app.js  (build $BUILD_ID, mesh code $MESH_CODE)"
 "$DENO" run -A npm:esbuild render/demos/slicer-app.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  "--define:__MESH_CODE__=\"$MESH_CODE\"" \
   --outfile="$GALLERY/webgpu/slicer-app.js" || exit 1
 
 # The ingest worker is a SECOND entry point, bundled beside the page bundle. volumeToZarr looks for
@@ -51,6 +87,22 @@ echo "Bundling algorithms/surface-nets-worker.ts -> $GALLERY/webgpu/surface-nets
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/surface-nets-worker.js" || exit 1
+
+echo "Bundling algorithms/decimate-worker.ts -> $GALLERY/webgpu/decimate-worker.js"
+"$DENO" run -A npm:esbuild algorithms/decimate-worker.ts \
+  --bundle --format=esm \
+  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  --outfile="$GALLERY/webgpu/decimate-worker.js" || exit 1
+
+# The codec worker, and the vendored WebAssembly codecs it fetches from ./vendor/codecs/ beside it
+# (render/vendor/codecs/README.md: what they are, their versions and licenses).
+echo "Bundling algorithms/codec-worker.ts -> $GALLERY/webgpu/codec-worker.js"
+"$DENO" run -A npm:esbuild algorithms/codec-worker.ts \
+  --bundle --format=esm \
+  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  --outfile="$GALLERY/webgpu/codec-worker.js" || exit 1
+mkdir -p "$GALLERY/webgpu/vendor/codecs"
+cp "$SRC"/render/vendor/codecs/*.js "$SRC"/render/vendor/codecs/*.wasm "$GALLERY/webgpu/vendor/codecs/"
 
 echo "Bundling logic/ingest-worker.ts -> $GALLERY/webgpu/ingest-worker.js"
 "$DENO" run -A npm:esbuild logic/ingest-worker.ts \

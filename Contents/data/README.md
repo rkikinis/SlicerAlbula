@@ -25,6 +25,24 @@ a database in SlicerAlbula. The script does not write into a Slicer database its
 932 MB in total, measured. If you only want to try the application, `--case CRLM-CT-1058` is
 23 MB and exercises the same path.
 
+## Compressed pixel data (the codecs)
+
+`codecs/codecs.tsv` names 28 small public files (15 MB with their uncompressed truths; MIT, from
+the pydicom project at a pinned tag and commit), one or more per transfer syntax SlicerAlbula
+should be able to read: JPEG baseline and 12-bit extended, JPEG lossless, JPEG-LS lossless and
+near-lossless, JPEG 2000 lossless and lossy, HTJ2K, RLE. Twelve lossless files have an
+uncompressed sibling with the same pixels, which is what a decoder test compares against.
+
+```
+python3 Contents/data/codecs/fetch-codecs.py
+```
+
+Five real clinical series with compressed pixel data are in `series.tsv` (found 2026-09-19 by
+sampling one small series from every IDC collection and modality — most of IDC is stored
+uncompressed; these are not): two JPEG-lossless CTs (MIDRC, TCGA-UCEC), one JPEG 12-bit LOSSY CT
+from NLST, a JPEG-lossless chest radiograph (MIDRC), a JPEG 2000 mammogram (DBT). `fetch-idc.py
+--case <id>` fetches them like the others.
+
 ## Where they come from
 
 The [Imaging Data Commons](https://portal.imaging.datacommons.cancer.gov) resolves a series from
