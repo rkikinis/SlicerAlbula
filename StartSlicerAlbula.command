@@ -87,6 +87,12 @@ function run(argv) {
 
   var target = saved;
   if (!target) return "no-saved-geometry";
+  // A FRAME TOO SMALL TO BE THE WINDOW IS NOT RESTORED. On 2026-09-23 the saved frame was 53 x 48
+  // pixels -- the last sample had caught something other than the main window -- and it was put
+  // back exactly, because it fitted on the screen: Ron's window opened tiny. The app itself already
+  // refuses anything under 640 x 480 when it reads this file (desktop/main.ts); this is the same
+  // rule on the launcher's side, so the window keeps the size the app gave it.
+  if (target.w < 640 || target.h < 480) return "ignored a saved frame of " + target.w + "x" + target.h + " (too small to be the window)";
 
   var fits = target.x >= usable.x && target.y >= usable.y &&
              target.x + target.w <= usable.x + usable.w &&
@@ -138,13 +144,27 @@ fi
 sleep 3
 LAST=""
 while kill -0 "$APP_PID" 2>/dev/null; do
+  # THE APPLICATION'S WINDOW, NOT WHATEVER IS FIRST. `windows[0]` is only the frontmost window of
+  # the process, and when a panel, a sheet or a minimized window is in that place the sample is that
+  # one's frame. That is how 53 x 48 got saved on 2026-09-23 and the next launch opened a window the
+  # size of an icon. So: the largest window the process has, and nothing smaller than the app will
+  # accept -- a sample that fails either test keeps the last good frame instead of replacing it.
   GEO=$(osascript -l JavaScript <<'EOF' 2>/dev/null
 function run() {
   var se = Application("System Events");
   try {
-    var w = se.processes["SlicerAlbula"].windows[0];
-    var p = w.position(), s = w.size();
-    return [p[0], p[1], s[0], s[1]].join(" ");
+    var ws = se.processes["SlicerAlbula"].windows(), best = null, area = 0;
+    for (var i = 0; i < ws.length; i++) {
+      try {
+        var mini = false;
+        try { mini = ws[i].attributes["AXMinimized"].value(); } catch (e) { /* not reported */ }
+        if (mini) continue;
+        var p = ws[i].position(), s = ws[i].size();
+        if (s[0] < 640 || s[1] < 480) continue;
+        if (s[0] * s[1] > area) { area = s[0] * s[1]; best = [p[0], p[1], s[0], s[1]]; }
+      } catch (e) { /* a window closing under us */ }
+    }
+    return best ? best.join(" ") : "";
   } catch (e) { return ""; }
 }
 EOF

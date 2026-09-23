@@ -21,6 +21,10 @@ cd "$SRC" || exit 1
 # fails on hundreds of Uint8Array<ArrayBufferLike> errors and runs nothing); "ALL PASS" in the
 # records has always meant this run. Skip with:  ALBULA_SKIP_TESTS=1 "<this script>"
 # when iterating on one thing with the tests known green -- and say so in the record.
+# THE DUCKN COPY'S CODE, from the converter's sources, before the tests (one of which checks it) and
+# before the server is compiled with it. A copy made by other code is not used (desktop/make-copy-code.ts).
+"$DENO" run -A desktop/make-copy-code.ts | sed 's/^/      /' || exit 1
+
 if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
   echo "Tests first (deno test -A --no-check --unstable-ffi in $SRC)…"
   T0=$(date +%s)
@@ -103,6 +107,29 @@ echo "Bundling algorithms/codec-worker.ts -> $GALLERY/webgpu/codec-worker.js"
   --outfile="$GALLERY/webgpu/codec-worker.js" || exit 1
 mkdir -p "$GALLERY/webgpu/vendor/codecs"
 cp "$SRC"/render/vendor/codecs/*.js "$SRC"/render/vendor/codecs/*.wasm "$GALLERY/webgpu/vendor/codecs/"
+
+# The segmentation decoder: the largest single-threaded phase of a load until 2026-09-22.
+echo "Bundling algorithms/seg-decode-worker.ts -> $GALLERY/webgpu/seg-decode-worker.js"
+"$DENO" run -A npm:esbuild algorithms/seg-decode-worker.ts \
+  --bundle --format=esm \
+  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  --outfile="$GALLERY/webgpu/seg-decode-worker.js" || exit 1
+
+# Unpacking a compressed labelmap off the page's thread (render/zarr.ts, assembleInWorker). Without
+# this file the page falls back to unpacking on its own thread and says so in the console.
+echo "Bundling render/zarr-assemble-worker.ts -> $GALLERY/webgpu/zarr-assemble-worker.js"
+"$DENO" run -A npm:esbuild render/zarr-assemble-worker.ts \
+  --bundle --format=esm \
+  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  --outfile="$GALLERY/webgpu/zarr-assemble-worker.js" || exit 1
+
+# Fetching and unpacking the pieces of a series' duckn working copy (render/zarr-copy.ts). Without
+# this file a load from a copy fails and falls back to the DICOM files, and the status line says so.
+echo "Bundling render/zarr-copy-worker.ts -> $GALLERY/webgpu/zarr-copy-worker.js"
+"$DENO" run -A npm:esbuild render/zarr-copy-worker.ts \
+  --bundle --format=esm \
+  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  --outfile="$GALLERY/webgpu/zarr-copy-worker.js" || exit 1
 
 echo "Bundling logic/ingest-worker.ts -> $GALLERY/webgpu/ingest-worker.js"
 "$DENO" run -A npm:esbuild logic/ingest-worker.ts \

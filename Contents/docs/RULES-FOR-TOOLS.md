@@ -6,7 +6,9 @@ was returning 502 on 2026-09-10 when this copy was made.
 
 **Source:** `https://www.slicer.org/wiki/Documentation-Rons-Rules-For-Tools`, transcribed from the
 Internet Archive. A presentation on the topic was given at the IMIC workshop at MICCAI 2014; **this
-page is the source, not the slides.**
+page is the source, not the slides.** **Citable, archived version (2026-09-21):** Kikinis R.
+"Ron's Rules for Tools", Zenodo, https://doi.org/10.5281/zenodo.22707222 (CC BY 4.0, dated
+2014-09-14) — the same text as below, reformatted; cite the DOI.
 
 ---
 
