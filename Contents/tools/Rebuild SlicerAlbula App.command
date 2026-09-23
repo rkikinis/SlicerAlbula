@@ -23,7 +23,10 @@ cd "$SRC" || exit 1
 # when iterating on one thing with the tests known green -- and say so in the record.
 # THE DUCKN COPY'S CODE, from the converter's sources, before the tests (one of which checks it) and
 # before the server is compiled with it. A copy made by other code is not used (desktop/make-copy-code.ts).
-"$DENO" run -A desktop/make-copy-code.ts | sed 's/^/      /' || exit 1
+# No pipe into sed here: a pipeline's status is the LAST command's, so `| sed ... || exit 1` could never
+# stop the build when the fingerprint failed (critic, 2026-09-23, round 2, finding 6).
+CC_OUT=$("$DENO" run -A desktop/make-copy-code.ts 2>&1) || { echo "$CC_OUT"; echo "The duckn copy code could not be computed -- not building."; exit 1; }
+echo "      $CC_OUT"
 
 if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
   echo "Tests first (deno test -A --no-check --unstable-ffi in $SRC)…"
