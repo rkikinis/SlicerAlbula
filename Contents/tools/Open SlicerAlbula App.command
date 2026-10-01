@@ -31,7 +31,9 @@ if curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/webgpu/slicer-app.html"; th
   echo "Server already running on $PORT."
 else
   echo "Serving $GALLERY on http://127.0.0.1:$PORT"
-  "$DENO" run -A --quiet jsr:@std/http/file-server --port "$PORT" --host 127.0.0.1 "$GALLERY" &
+  # The file server's version comes from SlicerLive's deno.jsonc, where every JavaScript package's is (critic,
+  # qa/2026-09-28-dependencies.md, finding 12: this asked for jsr:@std/http with no version at all).
+  "$DENO" run -A --quiet --config "$SCRIPT_DIR/Contents/src/SlicerLive/deno.jsonc" jsr:@std/http@1/file-server --port "$PORT" --host 127.0.0.1 "$GALLERY" &
   SERVER_PID=$!
   for i in $(seq 1 40); do
     curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/webgpu/slicer-app.html" && break

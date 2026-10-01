@@ -10,7 +10,7 @@
 # WINDOW GEOMETRY. Unlike the colorize launcher, which restores a frame hard-coded into the script,
 # this remembers the ACTUAL window: the geometry is read back when the app quits and saved to
 # .slicer-app-window, then restored on the next launch. If the saved frame does not fit the current
-# screen (laptop display instead of the XDR), it is scaled down proportionally and centred, using
+# screen (laptop display instead of the XDR), it is scaled down proportionally and centered, using
 # visibleFrame so the menu bar and Dock are respected.
 #
 # Every path is relative to THIS script, so the SlicerLive folder can be moved.

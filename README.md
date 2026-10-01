@@ -35,6 +35,9 @@ leverages the efforts of other people, including [3D Slicer](https://github.com/
   [TA2](https://ta2viewer.openanatomy.org/).
 - A crop box with handles in all viewers, aligned to the volume's own axes. The cropped
   volume goes back into the DICOM database as a derived series, with its provenance recorded.
+- Diffusion MRI for brain tumor planning, as a separate extension
+  ([albula-diffusion](https://github.com/rkikinis/albula-diffusion)): FA and Color FA, two-tensor
+  tractography on the graphics card, tract names (TractCloud), and the named tracts near a tumor.
 
 ## Installation
 

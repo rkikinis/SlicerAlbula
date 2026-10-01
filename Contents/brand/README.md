@@ -14,7 +14,7 @@ Made by Ron Kikinis, 2026-09-09, with Gemini.
 The gold line switchbacking up the massif is the pass road, and it is the point of the mark rather
 than decoration on it — it is also the only feature that still reads at 18px. The name's origin
 story is in the main `README.md` under "The name": the summit never prevented a road, the gorge
-below Bergün did, and every generation since has cut or tunnelled through the hard part.
+below Bergün did, and every generation since has cut or tunneled through the hard part.
 
 ## The 3D view's background is part of this too
 

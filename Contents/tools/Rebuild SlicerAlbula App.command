@@ -7,6 +7,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"   # the workspace root: Conten
 SRC="$SCRIPT_DIR/Contents/src/SlicerLive"
 GALLERY="$SCRIPT_DIR/Contents/src/live"
 DENO="$(command -v deno || echo /opt/homebrew/bin/deno)"
+# THE BUNDLER'S VERSION is in Contents/src/SlicerLive/deno.jsonc with every other JavaScript package's (Ron,
+# 2026-09-25: every dependency's version in one place). Every step below runs in $SRC, so Deno finds it.
+ESBUILD="npm:esbuild"
 
 if [ ! -x "$DENO" ]; then
   echo "deno not found. Install with:  brew install deno"
@@ -26,14 +29,39 @@ cd "$SRC" || exit 1
 # No pipe into sed here: a pipeline's status is the LAST command's, so `| sed ... || exit 1` could never
 # stop the build when the fingerprint failed (critic, 2026-09-23, round 2, finding 6).
 CC_OUT=$("$DENO" run -A desktop/make-copy-code.ts 2>&1) || { echo "$CC_OUT"; echo "The duckn copy code could not be computed -- not building."; exit 1; }
+# Each extension's DICOM interpreter carries its own fingerprint, recorded in the copies it reads (Contents/tools/extensions.ts).
+EXT_FP=$("$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" fingerprint 2>&1) || { echo "$EXT_FP"; echo "An extension's interpreter fingerprint could not be computed -- not building."; exit 1; }
+echo "$EXT_FP"
 echo "      $CC_OUT"
 
+# TWO TIERS (Ron, 2026-09-29: "yes ... the fast/full test split"). A test file whose header says `// @full-tier` reads a
+# large data collection (the DICOM corpus, the 27 diffusion scanner sets) and runs only in the FULL tier; every other
+# test runs every build (the FAST tier). The full tier runs when: ALBULA_FULL_TESTS=1; no full pass is recorded; the
+# last full pass is more than 7 days old; or anything changed since it in the code those tests guard -- the DICOM and
+# NIfTI/NRRD readers, the codecs, the DICOM library, the vendored packages, diffusion, or a dependency's version.
+# A passing full run touches Contents/run/last-full-tests; a failing one does not.
+FULL_STAMP="$SCRIPT_DIR/Contents/run/last-full-tests"
+FULL_WHY=""
+if [ "${ALBULA_FULL_TESTS:-0}" = "1" ]; then FULL_WHY="asked for (ALBULA_FULL_TESTS=1)"
+elif [ ! -f "$FULL_STAMP" ]; then FULL_WHY="no full run recorded"
+elif [ -n "$(find "$FULL_STAMP" -mtime +7)" ]; then FULL_WHY="the last full run is more than 7 days old"
+else
+  CHANGED=$(find logic/readers logic/codecs logic/dicom-io.ts logic/dcmjs.ts render/vendor render/nrrd.ts sdk "$SCRIPT_DIR/Contents/extensions" deno.jsonc deno.lock -type f -newer "$FULL_STAMP" -not -path '*/.git/*' 2>/dev/null | head -1)
+  [ -n "$CHANGED" ] && FULL_WHY="changed since the last full run: ${CHANGED#./}"
+fi
+if [ -n "$FULL_WHY" ]; then TIER="full"; IGNORE_ARG=""
+else TIER="fast"; IGNORE_ARG="--ignore=$(grep -l '@full-tier' $(git ls-files '*.test.ts') 2>/dev/null | paste -sd, -)"; fi
+
+# THE EXTENSIONS ARE AT THEIR PINNED COMMITS (or ALBULA_UNPINNED=1), tests or not.
+echo "Extensions:"
+"$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" check || exit 1
+
 if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
-  echo "Tests first (deno test -A --no-check --unstable-ffi in $SRC)…"
+  echo "Tests first, $TIER tier${FULL_WHY:+ ($FULL_WHY)} (deno test -A --no-check --unstable-ffi in $SRC)…"
   T0=$(date +%s)
   TEST_OUT="$(mktemp -t albula-tests)"
-  if "$DENO" test -A --no-check --unstable-ffi > "$TEST_OUT" 2>&1; then
-    echo "      tests: $(sed 's/\x1b\[[0-9;]*m//g' "$TEST_OUT" | grep -aE '^ok \| [0-9]+ passed' | tail -1 | sed 's/^ok | //')  ($(( $(date +%s) - T0 )) s)"
+  if "$DENO" test -A --no-check --unstable-ffi $IGNORE_ARG > "$TEST_OUT" 2>&1; then
+    echo "      tests ($TIER): $(sed 's/\x1b\[[0-9;]*m//g' "$TEST_OUT" | grep -aE '^ok \| [0-9]+ passed' | tail -1 | sed 's/^ok | //')  ($(( $(date +%s) - T0 )) s)"
   else
     echo
     echo "TESTS FAILED — nothing was built. The failures:"
@@ -42,6 +70,33 @@ if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
     exit 1
   fi
   rm -f "$TEST_OUT"
+  # THE EXTENSIONS' TESTS (Contents/extensions/extensions.json; each extension's own, with its manifest's flags and
+  # core's config for the SDK names; the same tier as core's). A full pass is recorded only when they pass too.
+  echo "Extensions' tests…"
+  if ! ALBULA_TIER="$TIER" "$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" test; then
+    echo "EXTENSION TESTS FAILED — nothing was built."
+    exit 1
+  fi
+  [ "$TIER" = "full" ] && mkdir -p "$(dirname "$FULL_STAMP")" && touch "$FULL_STAMP"
+  # THE ENGINE CHECK (algorithms/surface-nets.engine-bench.ts): the same surface extraction in JavaScriptCore, the
+  # engine the app's window runs, and in V8, which the tests run. The Greased Lightning fix (118 s -> 15 s) is
+  # invisible in V8, so no ordinary test can catch a change that quietly costs the shipping engine a factor of seven
+  # (it was 6.9x). Fails the build when phases 1-2 are more than 3x slower in JavaScriptCore, or the engines disagree
+  # on the triangles. Critic, qa/2026-09-28-dependencies.md, finding 11: the rebuild never ran it.
+  JSC=/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc
+  if [ -x "$JSC" ]; then
+    EB="$(mktemp -d -t albula-engine)"
+    "$DENO" run -A "$ESBUILD" algorithms/surface-nets.engine-bench.ts --bundle --format=iife --target=es2020 --outfile="$EB/eb.js" --log-level=warning || exit 1
+    printf 'globalThis.print=console.log;\n' | cat - "$EB/eb.js" > "$EB/eb-v8.js"
+    J_OUT=$("$JSC" "$EB/eb.js" 2>&1); V_OUT=$("$DENO" run -A "$EB/eb-v8.js" 2>&1)
+    rm -rf "$EB"
+    if ! ENGINE=$(python3 "$SCRIPT_DIR/Contents/tools/engine-check.py" "$J_OUT" "$V_OUT"); then
+      echo; echo "ENGINE CHECK FAILED — nothing was built. $ENGINE"; echo "  JavaScriptCore: $J_OUT"; echo "  V8: $V_OUT"; exit 1
+    fi
+    echo "      engine: $ENGINE"
+  else
+    echo "      engine: SKIPPED (no JavaScriptCore at $JSC)"
+  fi
 else
   echo "      tests: SKIPPED (ALBULA_SKIP_TESTS=1)"
 fi
@@ -68,21 +123,17 @@ if command -v git >/dev/null 2>&1 && git -C "$SRC" rev-parse --git-dir >/dev/nul
   BUILD_ID="$BUILD_ID $BUILD_SHA"
 fi
 
-# THE MESH CODE FINGERPRINT: a hash of the source files that turn a stored surfaces object into
-# the meshes the renderer draws (the DICOM surface reader, the decimator and its worker, the
-# cache format, the vendored simplifier). Every mesh cache in the database records the fingerprint
-# that made it (logic/mesh-cache.ts, MESH_CODE) and the server refuses one made by other code --
-# so a fix to any of these files remakes every cache on its next load, and no one has to
-# remember to bump a version. It is NOT the build stamp on purpose: that changes on every rebuild
-# and would throw away 300 MB caches for a change to a menu.
-MESH_CODE="$(cat "$SRC/logic/readers/dicom-surface.ts" "$SRC/logic/decimate.ts" "$SRC/algorithms/decimate-worker.ts" \
-  "$SRC/logic/mesh-cache.ts" "$SRC/render/vendor/meshoptimizer/meshopt_simplifier.module.js" | shasum -a 256 | cut -c1-12)"
-
-echo "Bundling render/demos/slicer-app.ts -> $GALLERY/webgpu/slicer-app.js  (build $BUILD_ID, mesh code $MESH_CODE)"
-"$DENO" run -A npm:esbuild render/demos/slicer-app.ts \
-  --bundle --format=esm \
+# THE ENTRY IS GENERATED from Contents/extensions/extensions.json (Contents/tools/extensions.ts): each extension's hooks
+# and module, then core's app (render/demos/slicer-app.ts). Core never imports an extension; the list is where one is
+# added or removed. "albula" -- the SDK, the one name an extension imports from core -- is mapped here as in deno.jsonc.
+EXT_STAMP="$("$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" stamp)"
+[ -n "$EXT_STAMP" ] && BUILD_ID="$BUILD_ID · $EXT_STAMP"
+ENTRY="$SCRIPT_DIR/Contents/run/build/albula-app.generated.ts"
+"$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" entry "$ENTRY" || exit 1
+echo "Bundling the app (core + extensions) -> $GALLERY/webgpu/slicer-app.js  (build $BUILD_ID)"
+"$DENO" run -A "$ESBUILD" "$ENTRY" \
+  --bundle --format=esm --alias:albula=./sdk/albula.ts \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
-  "--define:__MESH_CODE__=\"$MESH_CODE\"" \
   --outfile="$GALLERY/webgpu/slicer-app.js" || exit 1
 
 # The ingest worker is a SECOND entry point, bundled beside the page bundle. volumeToZarr looks for
@@ -90,13 +141,13 @@ echo "Bundling render/demos/slicer-app.ts -> $GALLERY/webgpu/slicer-app.js  (bui
 # The surface-extraction worker, same arrangement and for the same reason: it is looked up relative
 # to the document, so it has to land beside the page bundle.
 echo "Bundling algorithms/surface-nets-worker.ts -> $GALLERY/webgpu/surface-nets-worker.js"
-"$DENO" run -A npm:esbuild algorithms/surface-nets-worker.ts \
+"$DENO" run -A "$ESBUILD" algorithms/surface-nets-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/surface-nets-worker.js" || exit 1
 
 echo "Bundling algorithms/decimate-worker.ts -> $GALLERY/webgpu/decimate-worker.js"
-"$DENO" run -A npm:esbuild algorithms/decimate-worker.ts \
+"$DENO" run -A "$ESBUILD" algorithms/decimate-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/decimate-worker.js" || exit 1
@@ -104,16 +155,23 @@ echo "Bundling algorithms/decimate-worker.ts -> $GALLERY/webgpu/decimate-worker.
 # The codec worker, and the vendored WebAssembly codecs it fetches from ./vendor/codecs/ beside it
 # (render/vendor/codecs/README.md: what they are, their versions and licenses).
 echo "Bundling algorithms/codec-worker.ts -> $GALLERY/webgpu/codec-worker.js"
-"$DENO" run -A npm:esbuild algorithms/codec-worker.ts \
+"$DENO" run -A "$ESBUILD" algorithms/codec-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/codec-worker.js" || exit 1
 mkdir -p "$GALLERY/webgpu/vendor/codecs"
-cp "$SRC"/render/vendor/codecs/*.js "$SRC"/render/vendor/codecs/*.wasm "$GALLERY/webgpu/vendor/codecs/"
+cp "$SRC"/render/vendor/codecs/*.js "$SRC"/render/vendor/codecs/*.wasm "$SRC"/render/vendor/codecs/LICENSE-* "$GALLERY/webgpu/vendor/codecs/"
+# dcmjs and sql.js, vendored since 2026-09-28 (they came from jsdelivr/unpkg at run time: no network, no DICOM;
+# critic, qa/2026-09-28-dependencies.md, finding 1). The page and the workers load them from ./vendor/ beside the bundle.
+# EACH EXTENSION'S FILES (its manifest's "assets": dcm2niix's WebAssembly, TractCloud's network, ...) to vendor/<group>/.
+"$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" assets "$GALLERY/webgpu" || exit 1
+mkdir -p "$GALLERY/webgpu/vendor/dcmjs" "$GALLERY/webgpu/vendor/sqljs"
+cp "$SRC"/render/vendor/dcmjs/dcmjs.js "$SRC"/render/vendor/dcmjs/License.txt "$GALLERY/webgpu/vendor/dcmjs/"
+cp "$SRC"/render/vendor/sqljs/sql-wasm.js "$SRC"/render/vendor/sqljs/sql-wasm.wasm "$SRC"/render/vendor/sqljs/LICENSE "$GALLERY/webgpu/vendor/sqljs/"
 
 # The segmentation decoder: the largest single-threaded phase of a load until 2026-09-22.
 echo "Bundling algorithms/seg-decode-worker.ts -> $GALLERY/webgpu/seg-decode-worker.js"
-"$DENO" run -A npm:esbuild algorithms/seg-decode-worker.ts \
+"$DENO" run -A "$ESBUILD" algorithms/seg-decode-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/seg-decode-worker.js" || exit 1
@@ -121,7 +179,7 @@ echo "Bundling algorithms/seg-decode-worker.ts -> $GALLERY/webgpu/seg-decode-wor
 # Unpacking a compressed labelmap off the page's thread (render/zarr.ts, assembleInWorker). Without
 # this file the page falls back to unpacking on its own thread and says so in the console.
 echo "Bundling render/zarr-assemble-worker.ts -> $GALLERY/webgpu/zarr-assemble-worker.js"
-"$DENO" run -A npm:esbuild render/zarr-assemble-worker.ts \
+"$DENO" run -A "$ESBUILD" render/zarr-assemble-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/zarr-assemble-worker.js" || exit 1
@@ -129,13 +187,13 @@ echo "Bundling render/zarr-assemble-worker.ts -> $GALLERY/webgpu/zarr-assemble-w
 # Fetching and unpacking the pieces of a series' duckn working copy (render/zarr-copy.ts). Without
 # this file a load from a copy fails and falls back to the DICOM files, and the status line says so.
 echo "Bundling render/zarr-copy-worker.ts -> $GALLERY/webgpu/zarr-copy-worker.js"
-"$DENO" run -A npm:esbuild render/zarr-copy-worker.ts \
+"$DENO" run -A "$ESBUILD" render/zarr-copy-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/zarr-copy-worker.js" || exit 1
 
 echo "Bundling logic/ingest-worker.ts -> $GALLERY/webgpu/ingest-worker.js"
-"$DENO" run -A npm:esbuild logic/ingest-worker.ts \
+"$DENO" run -A "$ESBUILD" logic/ingest-worker.ts \
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/ingest-worker.js" || exit 1
@@ -204,7 +262,22 @@ fi
 BIN="$APP/Contents/MacOS/SlicerAlbula"
 BUILT="$SRC/desktop/build/SlicerAlbula.app"
 NEWEST_SERVER=""
-[ -f "$BIN" ] && NEWEST_SERVER=$(find "$SRC/desktop" -name '*.ts' -not -name '*.test.ts' -newer "$BIN" 2>/dev/null | head -1)
+# EVERY FILE THE SERVER IS COMPILED FROM, not only desktop/: it also uses logic/mesh-cache.ts,
+# logic/scene/*.ts, logic/settings.ts, algorithms/surface-nets.ts and render/mat4.ts, and a change to any of
+# them never reached the installed app (code review 2026-09-24, A2). Deno lists the graph from the two entry
+# points make-app.ts compiles; desktop/ is still searched in case that listing fails.
+SERVER_FILES=$( { "$DENO" info --json "$SRC/desktop/main.ts" 2>/dev/null; echo; "$DENO" info --json "$SRC/desktop/server-worker.ts" 2>/dev/null; } \
+  | python3 -c 'import json,sys
+for chunk in sys.stdin.read().split("\n{"):
+    chunk = chunk.strip()
+    if not chunk: continue
+    if not chunk.startswith("{"): chunk = "{" + chunk
+    try: d = json.loads(chunk)
+    except Exception: continue
+    for m in d.get("modules", []):
+        # "local" is the plain path; the specifier is a URL ("a b" is "a%20b" there) (critic, finding 11).
+        if m.get("specifier", "").startswith("file://") and m.get("local"): print(m["local"])' 2>/dev/null | sort -u)
+[ -f "$BIN" ] && NEWEST_SERVER=$( { echo "$SERVER_FILES"; find "$SRC/desktop" -name '*.ts' -not -name '*.test.ts'; } | while read -r f; do [ -n "$f" ] && [ "$f" -nt "$BIN" ] && { echo "$f"; break; }; done)
 if [ ! -f "$BIN" ]; then
   echo "      (no installed binary to compare the server code against)"
 elif [ -n "$NEWEST_SERVER" ]; then
@@ -242,7 +315,7 @@ echo
 WORKSPACE="$SRC/LiveStory/workspace/webgpu"
 if [ -d "$WORKSPACE" ]; then
   echo "Bundling examples/colorize/colorize-browser.ts -> $WORKSPACE/colorize.js"
-  "$DENO" run -A npm:esbuild examples/colorize/colorize-browser.ts \
+  "$DENO" run -A "$ESBUILD" examples/colorize/colorize-browser.ts \
     --bundle --format=esm \
     --outfile="$WORKSPACE/colorize.js" || exit 1
   echo "Done. Reload colorize (or run 'Contents/tools/Open SlicerAlbula Colorize.command')."

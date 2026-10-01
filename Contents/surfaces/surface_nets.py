@@ -24,7 +24,7 @@ plugin framework", and it is a segmentation-model runner -- a mesh extractor is 
 follows its architecture and stays in Albula, which Ron calls "a sandbox... complementary to what
 steve and mike are doing". It is written so it could be offered upstream as an engine later.
 
-PARITY IS THE CONTRACT. This must agree with the TypeScript reference, which has seven behavioural
+PARITY IS THE CONTRACT. This must agree with the TypeScript reference, which has seven behavioral
 tests and shipped output Ron has accepted. The check is the triangle count on NEPHROGENIC ts:total:
 **12,121,372**.
 """
@@ -44,7 +44,7 @@ CELL_EDGES = [(0, 1), (2, 3), (4, 5), (6, 7),      # along x
               (0, 2), (1, 3), (4, 6), (5, 7),      # along y
               (0, 4), (1, 5), (2, 6), (3, 7)]      # along z
 
-# For a face between a voxel and its +axis neighbour, the four CELLS around that face, as
+# For a face between a voxel and its +axis neighbor, the four CELLS around that face, as
 # (di, dj, dk) offsets from the voxel, in the winding the TypeScript emits (a -> b).
 FACE_CELLS = {
     0: [(0, -1, -1), (0, 0, -1), (0, 0, 0), (0, -1, 0)],      # +x
@@ -134,7 +134,7 @@ def extract(
 
     # ── PHASE 1c: vertex positions, for the compacted cells only ──
     # A label boundary is categorical, so each crossing contributes its edge MIDPOINT; averaging them
-    # still pulls the vertex toward the true surface rather than the cell centre.
+    # still pulls the vertex toward the true surface rather than the cell center.
     cvals = torch.stack([lab_t[kz + dz, ky + dy, kx + dx] for (dx, dy, dz) in CORNER])
     acc = torch.zeros((3, n_v), dtype=torch.float32, device=dev)
     cnt = torch.zeros(n_v, dtype=torch.float32, device=dev)
@@ -203,7 +203,7 @@ def _finish(lab_t, verts_ijk, qa, qb, qv, ijk_to_ras, dev, smooth_iters, normal_
     nobody re-derives them: 48 Taubin passes over 5.7 M vertices and 48 M directed edges cost 40.7 s
     via `index_add_` on CPU (22.4 s on MPS) and 10.0 s via the padded gather table used below -- while
     the TypeScript does the WHOLE of phases 3-4 in 11.2 s with a CSR adjacency. A contiguous
-    per-vertex neighbour list in a tight loop beats materialising a (n_v, K, 3) tensor every pass.
+    per-vertex neighbor list in a tight loop beats materializing a (n_v, K, 3) tensor every pass.
 
     So the torch win is confined to phases 1-2 (13.9 s -> 1.3 s). See GREASED-LIGHTNING.md.
     """
@@ -219,8 +219,8 @@ def _finish(lab_t, verts_ijk, qa, qb, qv, ijk_to_ras, dev, smooth_iters, normal_
                            qv[:, 1], qv[:, 2], qv[:, 3], qv[:, 0]])
         e_dst = torch.cat([qv[:, 1], qv[:, 2], qv[:, 3], qv[:, 0],
                            qv[:, 0], qv[:, 1], qv[:, 2], qv[:, 3]])
-        # A PADDED NEIGHBOUR TABLE, not a CSR: sort by source, then place each vertex's neighbours in
-        # a fixed-width row. Duplicates are kept -- a Laplacian weights by how many times a neighbour
+        # A PADDED NEIGHBOR TABLE, not a CSR: sort by source, then place each vertex's neighbors in
+        # a fixed-width row. Duplicates are kept -- a Laplacian weights by how many times a neighbor
         # is seen, and the TypeScript CSR keeps them too, so dropping them here would change the
         # result and break parity.
         order = torch.argsort(e_src)
@@ -234,7 +234,7 @@ def _finish(lab_t, verts_ijk, qa, qb, qv, ijk_to_ras, dev, smooth_iters, normal_
         msk = torch.zeros((n_v, K), dtype=torch.bool, device=dev)
         nbr[s_src, col] = s_dst
         msk[s_src, col] = True
-        mark("3a neighbour table")
+        mark("3a neighbor table")
 
         p = verts_ijk.to(torch.float64)
         degf = deg.clamp(min=1).to(torch.float64).unsqueeze(1)
@@ -246,7 +246,7 @@ def _finish(lab_t, verts_ijk, qa, qb, qv, ijk_to_ras, dev, smooth_iters, normal_
             p = p + f * (s / degf - p)
 
         # TWO PASSES PER ITERATION, the second negative. A Laplacian pass alone shrinks the surface
-        # every time; Taubin's second pass pushes back slightly harder, cancelling the shrinkage.
+        # every time; Taubin's second pass pushes back slightly harder, canceling the shrinkage.
         for _ in range(smooth_iters):
             step(LAMBDA)
             step(MU)
@@ -260,7 +260,7 @@ def _finish(lab_t, verts_ijk, qa, qb, qv, ijk_to_ras, dev, smooth_iters, normal_
     mark("3c to RAS")
 
     # ── PHASE 4: one mesh per label ──
-    # Each face is emitted into BOTH neighbouring labels, reversed for the b side, so a parcel is
+    # Each face is emitted into BOTH neighboring labels, reversed for the b side, so a parcel is
     # never rendered inside-out.
     labels = torch.cat([qa, qb]).unique()
     labels = labels[labels != 0]
@@ -298,9 +298,9 @@ def _finish(lab_t, verts_ijk, qa, qb, qv, ijk_to_ras, dev, smooth_iters, normal_
 
 
 def _normals(pos: np.ndarray, idx: np.ndarray, passes: int) -> np.ndarray:
-    """Area-weighted vertex normals, then `passes` of averaging with neighbours.
+    """Area-weighted vertex normals, then `passes` of averaging with neighbors.
 
-    The unnormalised cross product is already proportional to triangle area, so summing it weights
+    The unnormalized cross product is already proportional to triangle area, so summing it weights
     big triangles more -- which is what you want. Angle weighting was measured against this on
     anisotropic voxels and made no difference: 16.1 vs 16.1 degrees.
     """

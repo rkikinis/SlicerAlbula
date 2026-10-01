@@ -8,13 +8,13 @@ base64 data URIs in theme.css, and then `render/demos/brand-assets.test.ts` will
 test exists precisely to catch a master that was replaced without this being run.
 
 Nothing here is hand-maintained artwork: the master is the only file a designer touches. What the
-script does that a crop could not is the SMALL-SIZE CUT. At 18px the wordmark is a grey smear, the
+script does that a crop could not is the SMALL-SIZE CUT. At 18px the wordmark is a gray smear, the
 hairpin dividers (3px strokes) erase the road they divide, and the delivered browns are darker than
 the toolbar they sit on (#151922). So the emblem is not the master shrunk -- it is the master with
 the text dropped, the dividers dropped and the rock lightened one step. Same geometry, so it still
 reads as the same mark.
 
-Rasterising needs macOS: qlmanage renders the SVG, sips resizes. There is no SVG rasteriser in the
+Rasterizing needs macOS: qlmanage renders the SVG, sips resizes. There is no SVG rasterizer in the
 Deno toolchain and adding one for two PNGs that change once a year is not worth it.
 """
 import base64
@@ -84,7 +84,7 @@ def cuts(src: str) -> tuple[str, str]:
     # rim and the writing." A Dock icon is read at 64 px, where the wordmark is a smear and the rim a
     # hairline; what survives is the disc with the massif and the road. So the icon is the disc and
     # the mountains, no rim, no text, no divider, scaled to fill the plate (disc radius 175 -> 280,
-    # 70% of the side) and centred. Ron keeps the shadowless flat disc: the drop shadow is dropped
+    # 70% of the side) and centered. Ron keeps the shadowless flat disc: the drop shadow is dropped
     # with the rim.
     icon_mtn = lighten(mtn_full + "</g>", 2)   # the slice stops short of the group's own closing tag
     icon = (

@@ -20,7 +20,7 @@ APP_PID=$!
 
 # Wait for the window, then place it: use the remembered portrait position/size
 # if it fits the current screen, otherwise scale it down proportionally and
-# centre it (menu-bar and Dock aware, whichever edge the Dock is on).
+# center it (menu-bar and Dock aware, whichever edge the Dock is on).
 RESULT=$(osascript -l JavaScript <<'EOF'
 function run() {
   ObjC.import("AppKit");

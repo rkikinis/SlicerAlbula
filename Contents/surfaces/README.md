@@ -26,12 +26,12 @@ But end to end it is **32.4 s against the TypeScript's 25.0 s**, and the phase s
 | 4b normals | ~4.6 s | 5.9 s | slower |
 | **total** | **25.0 s** | **32.4 s** | |
 
-**Vectorised set operations win enormously; iterative neighbour gathers lose badly.** Phases 1-2 are a
+**Vectorized set operations win enormously; iterative neighbor gathers lose badly.** Phases 1-2 are a
 boundary mask and a compaction — `torch.nonzero` over 417 M elements is one call and beats a
-hand-written loop eightfold. Phase 3 is 48 passes of "average each vertex with its neighbours", and
-torch materialises a 48 M x 3 gather (1.16 GB) on every pass, where the TypeScript's CSR loop
+hand-written loop eightfold. Phase 3 is 48 passes of "average each vertex with its neighbors", and
+torch materializes a 48 M x 3 gather (1.16 GB) on every pass, where the TypeScript's CSR loop
 accumulates in registers. Alternatives were measured and none helps: `index_add_` 40.7 s,
-`segment_reduce` 22.0 s, a padded neighbour table 16.9-20.2 s.
+`segment_reduce` 22.0 s, a padded neighbor table 16.9-20.2 s.
 
 **The GPU is worse still**, which is the other thing this settled. Phases 1-2 on MPS take 4.3 s
 against 1.3 s on CPU, because compaction is irregular rather than streaming: `torch.nonzero` over
@@ -44,6 +44,6 @@ against 1.3 s on CPU, because compaction is irregular rather than streaming: `to
 2. **A second independent implementation** of an algorithm whose output Ron has accepted. Exact parity
    from a completely different execution model is strong evidence the TypeScript is right.
 3. **It located the win precisely**: phases 1-2 are 56% of the TypeScript's time and are the part that
-   vectorises. That is where parallel workers should be aimed, and this measured the ceiling — 8x.
+   vectorizes. That is where parallel workers should be aimed, and this measured the ceiling — 8x.
 
 See `Contents/src/SlicerLive/docs/GREASED-LIGHTNING.md` for the decision this fed into.

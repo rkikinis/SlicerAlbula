@@ -102,7 +102,7 @@ def main() -> int:
     for i, f in enumerate(inside):
         d = pydicom.dcmread(f)
         px = d.pixel_array[r0:r1 + 1, c0:c1 + 1]
-        # The pixel origin moves with the corner that is kept: ImagePositionPatient is the centre of
+        # The pixel origin moves with the corner that is kept: ImagePositionPatient is the center of
         # the first pixel, so the new corner is the old one plus the row/column offsets along the
         # image axes.
         iop = [float(v) for v in d.ImageOrientationPatient]

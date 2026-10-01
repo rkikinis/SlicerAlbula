@@ -58,9 +58,9 @@ cannot be on the list by accident.
 The development database also held one non-public study. It is excluded, not named, and none of
 its identifiers appear in this repository.
 
-## Licence and citation
+## License and citation
 
-Every collection is **CC BY** — 3.0 or 4.0, all attribution licences — as recorded in IDC's index
+Every collection is **CC BY** — 3.0 or 4.0, all attribution licenses — as recorded in IDC's index
 for each series. Use of the data requires citing the collection, and IDC asks to be cited as well.
 The citations below are IDC's own, from `citations_from_selection` in `idc-index`:
 

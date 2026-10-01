@@ -37,7 +37,7 @@ t0 = time.perf_counter()
 from idc_index import IDCClient
 client = IDCClient()
 # The documented way in: DuckDB SQL over the `index` table (idc-index 0.10.2). collection_id is
-# the collection; license_short_name is its licence, which every result carries and which the
+# the collection; license_short_name is its license, which every result carries and which the
 # browser should show beside the collection -- a segmentation of CC BY data inherits the credit.
 uids = ",".join("'" + uid + "'" for _, uid, _, _ in rows)
 df = client.sql_query(f"SELECT SeriesInstanceUID, collection_id, PatientID, license_short_name FROM index WHERE SeriesInstanceUID IN ({uids})")
@@ -51,7 +51,7 @@ for pid, uid, mod, desc in rows:
     else: missing.append((pid, uid, mod, desc))
 
 print(f"\n{len(found)} resolved, {len(missing)} not in IDC\n")
-print(f"{'patient (ours)':<18} {'collection':<28} {'licence':<11} {'IDC patient':<14} mod")
+print(f"{'patient (ours)':<18} {'collection':<28} {'license':<11} {'IDC patient':<14} mod")
 last = None
 for pid, uid, mod, coll, idcpid, lic in found:
     if pid != last: print(f"{pid:<18} {coll:<28} {lic:<11} {idcpid:<14} {mod}"); last = pid
