@@ -27,51 +27,54 @@ leverages the efforts of other people, including [3D Slicer](https://github.com/
 - A 3D Slicer-style DICOM database browser, with changes to the defaults: derived series are
   nested under the series they came from, the text shown is the text you need, and there is a
   reader and writer for a DICOM-compliant round trip of surfaces.
+- Databases made and filled from the app itself: a folder of DICOM files, a disc, or a scene
+  packaged on another Mac (a folder ending in `.albula`) goes in with one step. The databases
+  keep 3D Slicer's layout, so Slicer opens them too.
 - GPU-accelerated versions of more than 70 trained AI segmentation networks, through the
   haversack platform.
 - 2D viewers of grayscale images with overlays of the segmentations. A 3D viewer with GPU
-  accelerated volume and surface rendering.
+  accelerated volume rendering; segmented anatomy is drawn solid straight from the labels, as an
+  atlas illustration or realistic, with no surface extraction. The picture quality is the
+  user's choice and does not change while you look.
 - Custom hierarchical organization of anatomical structures, compliant with
   [TA2](https://ta2viewer.openanatomy.org/).
 - A crop box with handles in all viewers, aligned to the volume's own axes. The cropped
   volume goes back into the DICOM database as a derived series, with its provenance recorded.
+- Time series: a gated cardiac CT plays as a beating heart, and its segmentations follow the
+  phases.
 - Diffusion MRI for brain tumor planning, as a separate extension
   ([albula-diffusion](https://github.com/rkikinis/albula-diffusion)): FA and Color FA, two-tensor
   tractography on the graphics card, tract names (TractCloud), and the named tracts near a tumor.
+- Experimental: the 3D view in VITURE XR glasses, in stereo and following the head. VITURE's
+  own software is needed for it and is not included.
 
 ## Installation
 
 The application will be distributed as a signed, notarized DMG under Releases: drag it to
-Applications and open it. It needs a Mac with plenty of memory — a whole-body case has peaked
-at 11.7 GB.
+Applications and open it. It needs a Mac with Apple silicon and plenty of memory — a whole-body
+case has peaked at 11.7 GB.
 
-As an alternative, SlicerAlbula can be built from GitHub. You need
-[3D Slicer](https://download.slicer.org), [deno](https://deno.land) and
-[uv](https://docs.astral.sh/uv/).
+AI segmentation runs through haversack. When it is not running, the AI Segmentations module
+starts it with one button; that needs [uv](https://docs.astral.sh/uv/) on the Mac.
 
-```
-git clone --recurse-submodules https://github.com/rkikinis/SlicerAlbula
-cd SlicerAlbula
-"Contents/tools/Rebuild SlicerAlbula App.command"
-./StartSlicerAlbula.command
-```
+**Where the source stands (October 2026):** the application is a branch of Steve Pieper's
+SlicerLive. Its current state is public as a single snapshot commit, branch
+[`albula` of rkikinis/SlicerLive](https://github.com/rkikinis/SlicerLive/tree/albula), updated
+from time to time rather than with every change; the diffusion extension is
+[rkikinis/albula-diffusion](https://github.com/rkikinis/albula-diffusion), and the data model it
+rests on is [SlicerAlbula-core](https://github.com/rkikinis/SlicerAlbula-core).
+`Contents/src/live` (Steve Pieper's gallery, unchanged) is a submodule of this repository. A
+recipe for building the whole application from these repositories has not been tested from
+scratch yet; until it has, the DMG is the way in. The tools are [deno](https://deno.land), at
+exactly the version the source names (the build refuses another), and uv.
 
-**Where the source stands (September 2026):** the application is a branch of SlicerLive with
-about 300 commits of my own on it. That branch is not published yet — I have written to its
-author first, and it goes up under `Contents/src/SlicerLive` when we have talked. Until then the
-build step above will not find it; the data model it rests on is already public as
-[SlicerAlbula-core](https://github.com/rkikinis/SlicerAlbula-core), and `Contents/src/live`
-(Steve Pieper's gallery, unchanged) is a submodule.
-
-AI segmentation needs haversack running:
-
-```
-uvx --python 3.12 --from "haversack[serve,remote] @ git+https://github.com/mhalle/haversack@v0.12.0" haversack serve --port 8790 --allow-transpose
-```
-
-There is no data in this repository. The test cases are public and come from the
-[Imaging Data Commons](https://portal.imaging.datacommons.cancer.gov). [`Contents/data/README.md`](Contents/data/README.md)
-lists them, and `Contents/data/fetch-idc.py` downloads them.
+There is no data in this repository. Albula's Sample Data module downloads public examples
+(3D Slicer's sample data, and a healthy volunteer's brain MRI with diffusion from OpenNeuro),
+and "Get the brain tumor test cases" brings in the
+[OpenNeuro ds001226](https://openneuro.org/datasets/ds001226) brain tumor cases. The CT test
+cases come from the [Imaging Data Commons](https://portal.imaging.datacommons.cancer.gov);
+[`Contents/data/README.md`](Contents/data/README.md) lists them, and `Contents/data/fetch-idc.py`
+downloads them.
 
 ## What it is built on
 
@@ -79,8 +82,10 @@ lists them, and `Contents/data/fetch-idc.py` downloads them.
   of every segmentation network. Nothing here wraps a network itself.
 - **[SlicerLive](https://github.com/pieper/SlicerLive)** and **[live](https://github.com/pieper/live)**,
   Steve Pieper. The renderer and the application shell. Albula is a branch of his work.
-- **[3D Slicer](https://slicer.org)**. The DICOM database, dcmqi, and the toolchain this
+- **[3D Slicer](https://slicer.org)**. The DICOM database layout, dcmqi, and the toolchain this
   interoperates with.
+- **[Deno](https://deno.land)**. The application's own server, with the SQLite built into it
+  for the database index.
 - **[duckn](https://github.com/mhalle/duckn)**, Michael Halle, for the lossless DICOM–zarr
   round trip. The structure tree follows his [Open Anatomy Browser](https://www.openanatomy.org/).
 - TotalSegmentator and the other networks, each cited with its paper inside the AI module.

@@ -26,6 +26,22 @@ ROOT="$(cd "$HERE/../.." && pwd)"   # the workspace root: tools/ lives under Con
 SRC="$ROOT/Contents/src/SlicerLive"
 BUILD="$SRC/desktop/build"
 DENO="$(command -v deno || echo /opt/homebrew/bin/deno)"
+# DENO'S VERSION, PINNED IN ONE PLACE (Contents/src/SlicerLive/DENO_VERSION; 2026-10-13, the cross-platform plan): the
+# application IS this Deno -- its server compiled with it, its SQLite the one inside it (node:sqlite) -- so a build with
+# another version is another application. Moving Deno: change that file, run the tests, rebuild.
+DENO_WANTED="$(tr -d '[:space:]' < "$(cd "$(dirname "${BASH_SOURCE[0]}")/../src/SlicerLive" && pwd)/DENO_VERSION")"
+if [ ! -x "$DENO" ]; then
+  echo "deno not found. Install with:  brew install deno"
+  exit 1
+fi
+DENO_HAVE="$("$DENO" --version 2>/dev/null | head -1 | awk '{print $2}')"
+if [ "$DENO_HAVE" != "$DENO_WANTED" ]; then
+  # Homebrew's Deno has no "deno upgrade" and keeps only its newest version (critic, 2026-10-13, finding 2).
+  echo "This build needs Deno $DENO_WANTED (Contents/src/SlicerLive/DENO_VERSION); this Mac has $DENO_HAVE."
+  echo "To move to $DENO_HAVE: put $DENO_HAVE in that file and run this again; every test runs before anything is built."
+  echo "To keep Homebrew from moving Deno:  brew pin deno"
+  exit 1
+fi
 
 # WHAT THIS BUILD IS, in the filename. Ron: "The dmg should have date and version and platform in
 # the name in addition to SlicerAlbula." A file called SlicerAlbula.dmg on someone's Downloads

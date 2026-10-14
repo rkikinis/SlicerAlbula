@@ -7,14 +7,25 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"   # the workspace root: Conten
 SRC="$SCRIPT_DIR/Contents/src/SlicerLive"
 GALLERY="$SCRIPT_DIR/Contents/src/live"
 DENO="$(command -v deno || echo /opt/homebrew/bin/deno)"
-# THE BUNDLER'S VERSION is in Contents/src/SlicerLive/deno.jsonc with every other JavaScript package's (Ron,
-# 2026-09-25: every dependency's version in one place). Every step below runs in $SRC, so Deno finds it.
-ESBUILD="npm:esbuild"
-
+# DENO'S VERSION, PINNED IN ONE PLACE (Contents/src/SlicerLive/DENO_VERSION; 2026-10-13, the cross-platform plan): the
+# application IS this Deno -- its server compiled with it, its SQLite the one inside it (node:sqlite) -- so a build with
+# another version is another application. Moving Deno: change that file, run the tests, rebuild.
+DENO_WANTED="$(tr -d '[:space:]' < "$(cd "$(dirname "${BASH_SOURCE[0]}")/../src/SlicerLive" && pwd)/DENO_VERSION")"
 if [ ! -x "$DENO" ]; then
   echo "deno not found. Install with:  brew install deno"
   exit 1
 fi
+DENO_HAVE="$("$DENO" --version 2>/dev/null | head -1 | awk '{print $2}')"
+if [ "$DENO_HAVE" != "$DENO_WANTED" ]; then
+  # Homebrew's Deno has no "deno upgrade" and keeps only its newest version (critic, 2026-10-13, finding 2).
+  echo "This build needs Deno $DENO_WANTED (Contents/src/SlicerLive/DENO_VERSION); this Mac has $DENO_HAVE."
+  echo "To move to $DENO_HAVE: put $DENO_HAVE in that file and run this again; every test runs before anything is built."
+  echo "To keep Homebrew from moving Deno:  brew pin deno"
+  exit 1
+fi
+# THE BUNDLER'S VERSION is in Contents/src/SlicerLive/deno.jsonc with every other JavaScript package's (Ron,
+# 2026-09-25: every dependency's version in one place). Every step below runs in $SRC, so Deno finds it.
+ESBUILD="npm:esbuild"
 
 cd "$SRC" || exit 1
 
@@ -161,13 +172,14 @@ echo "Bundling algorithms/codec-worker.ts -> $GALLERY/webgpu/codec-worker.js"
   --outfile="$GALLERY/webgpu/codec-worker.js" || exit 1
 mkdir -p "$GALLERY/webgpu/vendor/codecs"
 cp "$SRC"/render/vendor/codecs/*.js "$SRC"/render/vendor/codecs/*.wasm "$SRC"/render/vendor/codecs/LICENSE-* "$GALLERY/webgpu/vendor/codecs/"
-# dcmjs and sql.js, vendored since 2026-09-28 (they came from jsdelivr/unpkg at run time: no network, no DICOM;
-# critic, qa/2026-09-28-dependencies.md, finding 1). The page and the workers load them from ./vendor/ beside the bundle.
+# dcmjs, vendored since 2026-09-28 (it came from jsdelivr/unpkg at run time: no network, no DICOM; critic,
+# qa/2026-09-28-dependencies.md, finding 1). The page and the workers load it from ./vendor/ beside the bundle.
 # EACH EXTENSION'S FILES (its manifest's "assets": dcm2niix's WebAssembly, TractCloud's network, ...) to vendor/<group>/.
 "$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" assets "$GALLERY/webgpu" || exit 1
-mkdir -p "$GALLERY/webgpu/vendor/dcmjs" "$GALLERY/webgpu/vendor/sqljs"
+# (sql.js went on 2026-10-14: the server reads the index and the page asks it, desktop/db-listing.ts.)
+mkdir -p "$GALLERY/webgpu/vendor/dcmjs"
 cp "$SRC"/render/vendor/dcmjs/dcmjs.js "$SRC"/render/vendor/dcmjs/License.txt "$GALLERY/webgpu/vendor/dcmjs/"
-cp "$SRC"/render/vendor/sqljs/sql-wasm.js "$SRC"/render/vendor/sqljs/sql-wasm.wasm "$SRC"/render/vendor/sqljs/LICENSE "$GALLERY/webgpu/vendor/sqljs/"
+rm -rf "$GALLERY/webgpu/vendor/sqljs"   # an older build's copy, so the app ships none
 
 # The segmentation decoder: the largest single-threaded phase of a load until 2026-09-22.
 echo "Bundling algorithms/seg-decode-worker.ts -> $GALLERY/webgpu/seg-decode-worker.js"
