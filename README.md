@@ -3,7 +3,7 @@
 ⚠️ **EXPERIMENTAL & AI-ASSISTED** — This is an early-stage research project deliberately written with AI-assisted coding. Expect rapid change, incomplete features, and rough edges. Use at your own risk in production.
 
 > ## This software is not intended for clinical use.
-> ## SlicerAlbula is NOT an FDA approved medical device.
+> ## SlicerAlbula is NOT an FDA cleared or approved medical device.
 
 <p align="center">
   <a href="Contents/docs/images/albula-whole-body-ct.png"><img src="Contents/docs/images/albula-whole-body-ct.png" width="49%" alt="SlicerAlbula: 111 structures from TotalSegmentator on a whole-body CT, with the structure tree and three slice views"></a>
