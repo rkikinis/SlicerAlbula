@@ -16,6 +16,8 @@
 SlicerAlbula is my sandbox. I want to experiment on how to improve the user experience. I am
 leveraging my decades of experience, which I put into writing in 2014 in
 [Ron's Rules for Tools](Contents/docs/RULES-FOR-TOOLS.md).
+How they turn into the design of each module is in the
+[Albula Module Design Rules](Contents/docs/MODULE-DESIGN-RULES.md).
 
 SlicerAlbula is work in progress, living out the "publish early, publish often" concept. It
 leverages the efforts of other people, including [3D Slicer](https://github.com/Slicer/Slicer#readme),

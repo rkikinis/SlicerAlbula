@@ -25,6 +25,10 @@ is public, for instance as a series UID from the
 **A measurement.** If something is slow, tell me how slow and on what. See
 [Ron's Rules for Tools](Contents/docs/RULES-FOR-TOOLS.md), rule 5.
 
+**A module that breaks a rule.** Every module follows the
+[Albula Module Design Rules](Contents/docs/MODULE-DESIGN-RULES.md). A place where one does not
+is a bug, and it helps to say which rule.
+
 **An anatomical correction.** Structure names follow TA2. If a structure is in the wrong
 place in the tree, that is a bug.
 
