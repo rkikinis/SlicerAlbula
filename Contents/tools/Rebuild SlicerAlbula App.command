@@ -157,11 +157,8 @@ echo "Bundling algorithms/surface-nets-worker.ts -> $GALLERY/webgpu/surface-nets
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/surface-nets-worker.js" || exit 1
 
-echo "Bundling algorithms/decimate-worker.ts -> $GALLERY/webgpu/decimate-worker.js"
-"$DENO" run -A "$ESBUILD" algorithms/decimate-worker.ts \
-  --bundle --format=esm \
-  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
-  --outfile="$GALLERY/webgpu/decimate-worker.js" || exit 1
+# (The decimate worker is no longer bundled: since 2026-10-21 surface models are an export only and nothing loads it --
+# the critic's round on that change, finding 12. algorithms/decimate-worker.ts and its test stay.)
 
 # The codec worker, and the vendored WebAssembly codecs it fetches from ./vendor/codecs/ beside it
 # (render/vendor/codecs/README.md: what they are, their versions and licenses).
@@ -181,7 +178,8 @@ mkdir -p "$GALLERY/webgpu/vendor/dcmjs"
 cp "$SRC"/render/vendor/dcmjs/dcmjs.js "$SRC"/render/vendor/dcmjs/License.txt "$GALLERY/webgpu/vendor/dcmjs/"
 rm -rf "$GALLERY/webgpu/vendor/sqljs"   # an older build's copy, so the app ships none
 
-# The segmentation decoder: the largest single-threaded phase of a load until 2026-09-22.
+# The segmentation decoder's worker: bundled for a caller that wants it; the app decodes directly (measured faster;
+# logic/readers/seg-cache.ts).
 echo "Bundling algorithms/seg-decode-worker.ts -> $GALLERY/webgpu/seg-decode-worker.js"
 "$DENO" run -A "$ESBUILD" algorithms/seg-decode-worker.ts \
   --bundle --format=esm \

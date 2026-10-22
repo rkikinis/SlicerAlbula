@@ -50,12 +50,21 @@ rule on this page serves one of these five.
   column would have to scroll. A grip under it drags it taller or shorter, and the height is remembered; a double-click
   on the grip goes back to automatic. Never a fixed height with a scroll bar above empty space. *Ron: "Scrolling is
   mouse work."*
+- **Nothing important under a list.** Anything below a list is effectively hidden (Ron, 2026-10-15: "anything under the
+  list is effectively hidden"). A list's actions (Export, Show in Finder) and its notes sit above it; actions on one row
+  go in that row's ⋯. In a section whose body is a list, this overrides "the yellow in the last row".
 
 ## Controls
 
 - **Every button answers the click.** A pressed button flashes at once. Work that takes more than a moment changes the
   button's own label ("Saving…"), then says the result in the same place ("Saved ✓" or "Not saved"). The status line is
   a second place to say it, never the only one.
+- **Work past a few seconds says so, on the 3D view.** Anything that may take more than about two seconds puts one
+  banner across the top of the 3D view within a third of a second (`render/working.ts`, `startWork`): what is being
+  done, how far (a count, or a moving bar), Stop where the work can be stopped, and its usual time only when that work
+  has been measured on this Mac. Facts only. It goes by itself when the work is done; the result is said by the button
+  that started it. *Ron, 2026-10-17: "If you need time, you need time. But tell the user that you are working. If you
+  don't then the user is left guessing what is going on."*
 - **"…" means more is needed.** A button ends in "…" only when its click needs more from the person before anything
   happens: a window, a choice, a question.
 - **Visible at arm's length.** A small control (a triangle, ⋯, a pencil, an eye) is never smaller than the text beside
@@ -97,6 +106,13 @@ rule on this page serves one of these five.
   result. Any "the volume" in a design is rework waiting.
 - **Leave the data, change the appearance.** Display changes are free. Anything that touches voxels is explicit and
   lossless, and the original acquisition is never changed.
+- **Any scale: sizes in voxels, never a fixed length.** Albula is used from electron microscopy to astrophysics. A
+  default size, a smallest or largest size, a step, a brush, a margin, a handle is stated in voxels of the data shown,
+  and turned into the data's units only for display, with the grid named ("14 voxels ≈ 13.6 mm on this 0.97 mm grid").
+  A fixed number of millimeters in an interaction is a bug. Clinical measurements (a distance to a tumor) stay in the
+  data's units. *Ron, 2026-09-03: "dimensions are extremely important. People use slicer from microscopy to
+  astrophysics"; 2026-09-24: "work in voxels, not mm"; 2026-10-20, on a 2 mm smallest box: "did you forget about scales?
+  from astrophysics to electron microscope."* (`data-model-design-2026-09-03.md`, Addendum 5.)
 - **Self-contained.** Every step a user needs (make a database, add scans from a folder, outline a tumor) is a button
   in the application, never a script someone runs for them. *Ron: most users have no assistant at hand; the application
   has to stand on its own.*
@@ -136,7 +152,9 @@ For reviewing a mockup or a module. A "no" is fine when the mockup says why.
 - [ ] Advanced collapsed
 - [ ] No fine print on the face
 - [ ] Lists fit their space and can be resized
+- [ ] Nothing important under a list: its actions and notes above it, row actions in the row's ⋯
 - [ ] Every button answers the click
+- [ ] Work past a few seconds shows the working banner on the 3D view: facts only
 - [ ] "…" only where more is needed
 - [ ] Small controls visible at arm's length
 - [ ] Names: one click to rename; ⋯ and right-click menu
