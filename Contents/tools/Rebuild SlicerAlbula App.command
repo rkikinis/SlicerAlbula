@@ -45,34 +45,41 @@ EXT_FP=$("$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" fingerprint 2
 echo "$EXT_FP"
 echo "      $CC_OUT"
 
-# TWO TIERS (Ron, 2026-09-29: "yes ... the fast/full test split"). A test file whose header says `// @full-tier` reads a
-# large data collection (the DICOM corpus, the 27 diffusion scanner sets) and runs only in the FULL tier; every other
-# test runs every build (the FAST tier). The full tier runs when: ALBULA_FULL_TESTS=1; no full pass is recorded; the
-# last full pass is more than 7 days old; or anything changed since it in the code those tests guard -- the DICOM and
-# NIfTI/NRRD readers, the codecs, the DICOM library, the vendored packages, diffusion, or a dependency's version.
-# A passing full run touches Contents/run/last-full-tests; a failing one does not.
+# WHICH TESTS RUN (Ron, 2026-10-30: "go ahead with the rebuild change"; second version after the critic,
+# Contents/docs/qa/2026-10-30-test-selection.md). Contents/tools/test-select.ts chooses; its header says how.
+#   - CORE: every test file every build (about 2 minutes), except those marked `// @full-tier` (they read the large data
+#     collections), which run when their code changed.
+#   - EACH EXTENSION: a test file runs when something it uses changed since it last passed; a test that reads files or
+#     walks folders runs when any byte of its repository changed. The diffusion extension's tests took 24-74 min.
+#   - ALBULA_QUICK=1, for trying the editor in a session: only tests whose code changed; the tests that read files or data
+#     are left out, and the build stamp says "quick". Not a build to call done.
+# ALL OF THEM, OVERNIGHT, ON RON'S YES (Ron, 2026-10-30: "occasionally you run the full suite overnight after asking me,
+# because I can not leave the lid open every night"): ALBULA_ALL_TESTS=1 (or ALBULA_FULL_TESTS=1). A passing run touches
+# Contents/run/last-full-tests; after 7 days without one the build says so (it does not start it).
 FULL_STAMP="$SCRIPT_DIR/Contents/run/last-full-tests"
-FULL_WHY=""
-if [ "${ALBULA_FULL_TESTS:-0}" = "1" ]; then FULL_WHY="asked for (ALBULA_FULL_TESTS=1)"
-elif [ ! -f "$FULL_STAMP" ]; then FULL_WHY="no full run recorded"
-elif [ -n "$(find "$FULL_STAMP" -mtime +7)" ]; then FULL_WHY="the last full run is more than 7 days old"
-else
-  CHANGED=$(find logic/readers logic/codecs logic/dicom-io.ts logic/dcmjs.ts render/vendor render/nrrd.ts sdk "$SCRIPT_DIR/Contents/extensions" deno.jsonc deno.lock -type f -newer "$FULL_STAMP" -not -path '*/.git/*' 2>/dev/null | head -1)
-  [ -n "$CHANGED" ] && FULL_WHY="changed since the last full run: ${CHANGED#./}"
-fi
-if [ -n "$FULL_WHY" ]; then TIER="full"; IGNORE_ARG=""
-else TIER="fast"; IGNORE_ARG="--ignore=$(grep -l '@full-tier' $(git ls-files '*.test.ts') 2>/dev/null | paste -sd, -)"; fi
+ALL=0
+{ [ "${ALBULA_ALL_TESTS:-0}" = "1" ] || [ "${ALBULA_FULL_TESTS:-0}" = "1" ]; } && ALL=1
+QUICK=0; [ "${ALBULA_QUICK:-0}" = "1" ] && [ "$ALL" = 0 ] && QUICK=1
+CORE_MODE=everyday; EXT_MODE=changed; [ "$QUICK" = 1 ] && CORE_MODE=quick && EXT_MODE=quick
+SELECT=("$DENO" run -A "$SCRIPT_DIR/Contents/tools/test-select.ts")
+RUNLIST="$SCRIPT_DIR/Contents/run/test-select/core.run"
 
 # THE EXTENSIONS ARE AT THEIR PINNED COMMITS (or ALBULA_UNPINNED=1), tests or not.
 echo "Extensions:"
 "$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" check || exit 1
 
 if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
-  echo "Tests first, $TIER tier${FULL_WHY:+ ($FULL_WHY)} (deno test -A --no-check --unstable-ffi in $SRC)…"
+  echo "Tests first$([ "$ALL" = 1 ] && echo ", ALL of them" || ([ "$QUICK" = 1 ] && echo ", QUICK: only those whose code changed")) (deno test -A --no-check --unstable-ffi in $SRC)…"
+  SEL=$(ALBULA_ALL_TESTS=$ALL ALBULA_SELECT_MODE=$CORE_MODE "${SELECT[@]}" select core "$SRC/" "$SRC/deno.jsonc") || { echo "$SEL"; echo "The tests to run could not be chosen -- not building."; exit 1; }
+  echo "      core: $SEL"
   T0=$(date +%s)
   TEST_OUT="$(mktemp -t albula-tests)"
-  if "$DENO" test -A --no-check --unstable-ffi $IGNORE_ARG > "$TEST_OUT" 2>&1; then
-    echo "      tests ($TIER): $(sed 's/\x1b\[[0-9;]*m//g' "$TEST_OUT" | grep -aE '^ok \| [0-9]+ passed' | tail -1 | sed 's/^ok | //')  ($(( $(date +%s) - T0 )) s)"
+  TESTS_TO_RUN=(); while IFS= read -r t; do [ -n "$t" ] && TESTS_TO_RUN+=("$t"); done < "$RUNLIST"
+  if [ ${#TESTS_TO_RUN[@]} -eq 0 ]; then
+    echo "      tests: none of core's to run"
+  elif "$DENO" test -A --no-check --unstable-ffi "${TESTS_TO_RUN[@]}" > "$TEST_OUT" 2>&1; then
+    echo "      tests: $(sed 's/\x1b\[[0-9;]*m//g' "$TEST_OUT" | grep -aE '^ok \| [0-9]+ passed' | tail -1 | sed 's/^ok | //')  ($(( $(date +%s) - T0 )) s)"
+    "${SELECT[@]}" pass core "$TEST_OUT"
   else
     echo
     echo "TESTS FAILED — nothing was built. The failures:"
@@ -82,13 +89,17 @@ if [ "${ALBULA_SKIP_TESTS:-0}" != "1" ]; then
   fi
   rm -f "$TEST_OUT"
   # THE EXTENSIONS' TESTS (Contents/extensions/extensions.json; each extension's own, with its manifest's flags and
-  # core's config for the SDK names; the same tier as core's). A full pass is recorded only when they pass too.
+  # core's config for the SDK names; chosen as above, each extension with its own record).
   echo "Extensions' tests…"
-  if ! ALBULA_TIER="$TIER" "$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" test; then
+  if ! ALBULA_ALL_TESTS=$ALL ALBULA_SELECT_MODE=$EXT_MODE "$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" test; then
     echo "EXTENSION TESTS FAILED — nothing was built."
     exit 1
   fi
-  [ "$TIER" = "full" ] && mkdir -p "$(dirname "$FULL_STAMP")" && touch "$FULL_STAMP"
+  [ "$ALL" = 1 ] && mkdir -p "$(dirname "$FULL_STAMP")" && touch "$FULL_STAMP"
+  # -mtime +6: find counts whole days, so +7 would first answer on the eighth day (critic, nit).
+  if [ ! -f "$FULL_STAMP" ] || [ -n "$(find "$FULL_STAMP" -mtime +6)" ]; then
+    echo "      NOTE: every test together last passed $( [ -f "$FULL_STAMP" ] && stat -f '%Sm' -t '%b %e' "$FULL_STAMP" || echo never) -- ask Ron for an overnight run (ALBULA_ALL_TESTS=1)."
+  fi
   # THE ENGINE CHECK (algorithms/surface-nets.engine-bench.ts): the same surface extraction in JavaScriptCore, the
   # engine the app's window runs, and in V8, which the tests run. The Greased Lightning fix (118 s -> 15 s) is
   # invisible in V8, so no ordinary test can catch a change that quietly costs the shipping engine a factor of seven
@@ -128,6 +139,7 @@ fi
 # else's machine says which release they are on without them having to look it up.
 ALBULA_VERSION="$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION" 2>/dev/null || echo 0.0.0)"
 BUILD_ID="v$ALBULA_VERSION $(date '+%b %e %H:%M')"
+[ "${ALBULA_QUICK:-0}" = "1" ] && BUILD_ID="$BUILD_ID quick"   # a quick build ran only the tests whose code changed
 if command -v git >/dev/null 2>&1 && git -C "$SRC" rev-parse --git-dir >/dev/null 2>&1; then
   BUILD_SHA="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null)"
   [ -n "$(git -C "$SRC" status --porcelain 2>/dev/null)" ] && BUILD_SHA="$BUILD_SHA+"
@@ -175,7 +187,9 @@ cp "$SRC"/render/vendor/codecs/*.js "$SRC"/render/vendor/codecs/*.wasm "$SRC"/re
 "$DENO" run -A "$SCRIPT_DIR/Contents/tools/extensions.ts" assets "$GALLERY/webgpu" || exit 1
 # (sql.js went on 2026-10-14: the server reads the index and the page asks it, desktop/db-listing.ts.)
 mkdir -p "$GALLERY/webgpu/vendor/dcmjs"
-cp "$SRC"/render/vendor/dcmjs/dcmjs.js "$SRC"/render/vendor/dcmjs/License.txt "$GALLERY/webgpu/vendor/dcmjs/"
+# Since 2026-10-28 Steve Pieper's build: dcmjs.min.js (the page and the workers) and dcmjs.es.js; before, 0.41.0's dcmjs.js.
+cp "$SRC"/render/vendor/dcmjs/dcmjs*.js "$SRC"/render/vendor/dcmjs/License.txt "$GALLERY/webgpu/vendor/dcmjs/"
+[ -f "$SRC/render/vendor/dcmjs/dcmjs.js" ] || rm -f "$GALLERY/webgpu/vendor/dcmjs/dcmjs.js"   # 0.41.0's file, so no app ships two
 rm -rf "$GALLERY/webgpu/vendor/sqljs"   # an older build's copy, so the app ships none
 
 # The segmentation decoder's worker: bundled for a caller that wants it; the app decodes directly (measured faster;
@@ -201,6 +215,14 @@ echo "Bundling render/zarr-copy-worker.ts -> $GALLERY/webgpu/zarr-copy-worker.js
   --bundle --format=esm \
   "--define:__BUILD_ID__=\"$BUILD_ID\"" \
   --outfile="$GALLERY/webgpu/zarr-copy-worker.js" || exit 1
+
+# The Segment Editor's Threshold tool computes its preview here, off the page's thread (2026-10-30, Ron: "the HU slider is
+# very unresponsive"). Without this file the tool computes on the page, as its first build did.
+echo "Bundling render/demos/seg-tools/threshold-worker.ts -> $GALLERY/webgpu/threshold-worker.js"
+"$DENO" run -A "$ESBUILD" render/demos/seg-tools/threshold-worker.ts \
+  --bundle --format=esm \
+  "--define:__BUILD_ID__=\"$BUILD_ID\"" \
+  --outfile="$GALLERY/webgpu/threshold-worker.js" || exit 1
 
 echo "Bundling logic/ingest-worker.ts -> $GALLERY/webgpu/ingest-worker.js"
 "$DENO" run -A "$ESBUILD" logic/ingest-worker.ts \
@@ -306,6 +328,19 @@ elif [ -n "$NEWEST_SERVER" ]; then
       echo "      ⚠  SlicerAlbula IS RUNNING, so the new server code was compiled but NOT installed."
       echo "         Quit it and run this script again; until then the app's server side is the old one."
     else
+      # SIGNED WITH THE DEVELOPER ID WHEN THIS MAC HAS ONE (2026-11-03, sharing at the hospital): macOS keeps the Local
+      # Network permission for the app's signature, and an ad-hoc signature is new with every build -- the switch in
+      # System Settings stayed on while the rebuilt app could no longer see the router, so sharing broke silently after
+      # every rebuild. A Developer ID signature stays the same app across builds. The entitlements let V8 compile.
+      DEVID=$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)
+      if [ -n "$DEVID" ]; then
+        xattr -cr "$BUILT" 2>/dev/null   # codesign refuses Finder info and similar attributes (the packaging script's story)
+        find "$BUILT/Contents/Resources/lib" -name '*.dylib' -print0 2>/dev/null \
+          | xargs -0 -r codesign --force --timestamp --options runtime -s "$DEVID"
+        codesign --force --deep --timestamp --options runtime --entitlements "$SCRIPT_DIR/Contents/tools/albula-entitlements.plist" -s "$DEVID" "$BUILT" \
+          && codesign --verify --strict "$BUILT" && echo "      signed with $DEVID" \
+          || echo "      ✘ signing with the Developer ID failed; installing the ad-hoc build (Local Network may need allowing again)"
+      fi
       rm -rf "$APP" && cp -R "$BUILT" "$APP" && \
         echo "      ✓ recompiled and installed: $APP  (server side now matches the source)"
     fi

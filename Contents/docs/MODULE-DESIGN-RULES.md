@@ -70,6 +70,7 @@ rule on this page serves one of these five.
 - **Visible at arm's length.** A small control (a triangle, ⋯, a pencil, an eye) is never smaller than the text beside
   it, about 12 px; a lone icon is about 16 px. *Ron's test: easily recognizable with your eyes at arm's length from the
   monitor.*
+- **(The Databases list in Load / Save has a Details button in place of the ⋯, on Ron's word, 2026-11-01: "Just a details button".)**
 - **Names: one click to rename, ⋯ for the rest.** Wherever a module shows a name, the name is its own edit field: a
   pencil on hover, one click gives a text box with the name selected, Enter keeps, Esc cancels. A ⋯ button at the end of
   the row holds every other action, Remove first. A right-click opens the same menu. *Why: no directions to read, the
@@ -79,6 +80,14 @@ rule on this page serves one of these five.
 - **No orange for "not saved".** Unsaved, edited or "placing" is shown by turning the button that resolves it yellow.
   Orange is kept for something running. *Why: orange is foreign to the palette; the yellow button already means "the
   thing to do here".*
+- **Shown and hidden are an open and a closed eye.** One drawing for every list (`render/demos/eye-icon.ts`; the SDK's
+  `eyeSvg` for extensions); a hidden row is said by the closed eye, never by fading the row or the eye. *Ron, 2026-10-31:
+  "In our domain the consensus is open eye and closed eye. dimming is not used normally."*
+- **Every tool shows its mouse and keys.** A tool that answers the mouse or keys in the views (the Segment Editor's tools,
+  and any like them) lists each action under its controls: the action on the left (Drag, Shift-click, Option-drag, Esc),
+  what it does in a few words on the right, a tooltip on each line saying it in plain words. One shared part draws it
+  the same way in every tool (`render/demos/seg-tools/registry.ts`, `cheats`). *Ron, 2026-10-31: "we should have
+  cheatsheets in every effect to remind the user of modifiers, with tool tips explaining in layperson's terms."*
 - **What is not needed now stays out of sight, and can be brought back.** A control that serves only some cases (the
   player that steps through a series' frames, for a diffusion scan) is hidden by default and offered under Advanced.
 
@@ -112,7 +121,9 @@ rule on this page serves one of these five.
   A fixed number of millimeters in an interaction is a bug. Clinical measurements (a distance to a tumor) stay in the
   data's units. *Ron, 2026-09-03: "dimensions are extremely important. People use slicer from microscopy to
   astrophysics"; 2026-09-24: "work in voxels, not mm"; 2026-10-20, on a 2 mm smallest box: "did you forget about scales?
-  from astrophysics to electron microscope."* (`data-model-design-2026-09-03.md`, Addendum 5.)
+  from astrophysics to electron microscope."* (`data-model-design-2026-09-03.md`, Addendum 5.) **The exception:
+  image-guided therapy.** A tracked tool (a needle, a pointer, a phone standing in for one) moves in real millimeters,
+  and its lengths, distances and errors are stated in mm. *Ron, 2026-11-02: "For IGT mm is the correct measure."*
 - **Self-contained.** Every step a user needs (make a database, add scans from a folder, outline a tumor) is a button
   in the application, never a script someone runs for them. *Ron: most users have no assistant at hand; the application
   has to stand on its own.*
@@ -161,6 +172,8 @@ For reviewing a mockup or a module. A "no" is fine when the mockup says why.
 - [ ] Final deletes ask first
 - [ ] Yellow button, not orange, for unsaved
 - [ ] What only some cases need is hidden, and can be brought back under Advanced
+- [ ] A tool's mouse and keys listed under it, with plain tooltips
+- [ ] Shown / hidden: the open and closed eye, nothing faded
 - [ ] Plain words; tooltips say what
 - [ ] Results say what was done and by which method
 - [ ] Buttons, not sentences, for the first-time user

@@ -46,7 +46,10 @@ leverages the efforts of other people, including [3D Slicer](https://github.com/
   phases.
 - Diffusion MRI for brain tumor planning, as a separate extension
   ([albula-diffusion](https://github.com/rkikinis/albula-diffusion)): FA and Color FA, two-tensor
-  tractography on the graphics card, tract names (TractCloud), and the named tracts near a tumor.
+  tractography on the graphics card, tract names (RapidParc's network on the O'Donnell group's
+  fiber-cluster atlas, named by TractCloud's tract table), and the named tracts near a tumor. Its
+  README has one table of the methods it takes from other people: whose each is, which version,
+  which license, what it was checked against and how closely.
 - Experimental: the 3D view in VITURE XR glasses, in stereo and following the head. VITURE's
   own software is needed for it and is not included.
 
@@ -57,7 +60,9 @@ Applications and open it. It needs a Mac with Apple silicon and plenty of memory
 case has peaked at 11.7 GB.
 
 AI segmentation runs through haversack. When it is not running, the AI Segmentations module
-starts it with one button; that needs [uv](https://docs.astral.sh/uv/) on the Mac.
+starts it with one button; that needs [uv](https://docs.astral.sh/uv/) on the Mac. Diffusion
+tracking also finds the brain with SynthStrip, which needs Apple's Command Line Tools: type
+`xcode-select --install` in Terminal once.
 
 **Where the source stands (October 2026):** the application is a branch of Steve Pieper's
 SlicerLive. Its current state is public as a single snapshot commit, branch

@@ -148,6 +148,11 @@ APP="$STAGE/SlicerAlbula.app"
 # HTTP, and rsync copies that link into the bundle, where it dangles. It is a path into Ron's Mac
 # and must not ship; it also makes xattr fail on the broken link and stop the script under set -e.
 find "$APP/Contents/Resources/gallery" -type l -name dicomdb -delete
+# The same for every link: webgpu/_bench holds development benches whose links point into this Mac (reference data,
+# a scratch folder that is gone) -- 2026-11-03 a dangling one stopped the signed build here. Benches do not ship, and
+# no link may point out of the bundle or nowhere.
+rm -rf "$APP/Contents/Resources/gallery/webgpu/_bench"
+find "$APP/Contents/Resources/gallery" -type l \( -lname '/*' -o ! -exec test -e {} \; \) -print -delete
 # xattr first: codesign refuses a bundle carrying extended attributes, and macOS adds
 # com.apple.provenance on copy. This is what once let the app ship signed only as "a.out".
 xattr -cr "$APP"
@@ -159,7 +164,11 @@ LEFT="$(xattr -lr "$APP" 2>/dev/null | grep -v "com.apple.provenance" || true)"
 # --timestamp is likewise required. Inner binaries first, then the bundle.
 find "$APP/Contents/Resources/lib" -name '*.dylib' -print0 2>/dev/null \
   | xargs -0 -r codesign --force --timestamp --options runtime -s "$SIGN_ID"
-codesign --force --deep --timestamp --options runtime -s "$SIGN_ID" "$APP"
+# The hardened runtime forbids memory that is written and then run, which is how V8 compiles JavaScript: without these
+# two entitlements the app dies a second after launch ("Failed to reserve virtual memory for CodeRange", SIGTRAP) --
+# the first Developer ID build, 2026-11-03, on the hospital mini. Ad-hoc builds have no hardened runtime, so never met it.
+ENT="$HERE/albula-entitlements.plist"
+codesign --force --deep --timestamp --options runtime --entitlements "$ENT" -s "$SIGN_ID" "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 echo "    signed"
 
